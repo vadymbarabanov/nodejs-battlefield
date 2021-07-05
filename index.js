@@ -1,8 +1,16 @@
-const http = require("http");
-const querystring = require("querystring");
 const fs = require("fs");
+const express = require("express");
 
 const port = process.env.PORT || 4000;
+
+const app = express();
+
+app.get("/", respondText);
+app.get("/json", respondJson);
+app.get("/echo", respondEcho);
+app.get("/static/*", respondStatic);
+
+app.listen(port, () => console.log(`Server started on port ${port}`));
 
 function respondText(req, res) {
   res.setHeader("Content-Type", "text/plain");
@@ -10,8 +18,7 @@ function respondText(req, res) {
 }
 
 function respondJson(req, res) {
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify({ email: "vadim@vadim.com", name: "Vadim" }));
+  res.json({ email: "vadim@vadim.com", name: "Vadim" });
 }
 
 function repondNotFound(req, res) {
@@ -20,35 +27,19 @@ function repondNotFound(req, res) {
 }
 
 function respondEcho(req, res) {
-  const { input = "" } = querystring.parse(
-    req.url.split("?").slice(1).join("")
-  );
+  const { input = "" } = req.query;
 
-  res.setHeader("Content-Type", "application/json");
-  res.end(
-    JSON.stringify({
-      normal: input,
-      shouty: input.toUpperCase(),
-      characterCount: input.length,
-      backwards: input.split("").reverse().join(""),
-    })
-  );
+  res.json({
+    normal: input,
+    shouty: input.toUpperCase(),
+    characterCount: input.length,
+    backwards: input.split("").reverse().join(""),
+  });
 }
 
 function respondStatic(req, res) {
-  const filename = `${__dirname}/public${req.url.split("/static")[1]}`;
+  const filename = `${__dirname}/public/${req.params[0]}`;
   fs.createReadStream(filename)
     .on("error", () => respondNotFound(req, res))
     .pipe(res);
 }
-
-const server = http.createServer((req, res) => {
-  if (req.url === "/") return respondText(req, res);
-  if (req.url === "/json") return respondJson(req, res);
-  if (req.url.match(/^\/echo/)) return respondEcho(req, res);
-  if (req.url.match(/^\/static/)) return respondStatic(req, res);
-
-  repondNotFound(req, res);
-});
-
-server.listen(port);
